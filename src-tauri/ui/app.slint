@@ -1,0 +1,629 @@
+import { AboutSlint, Button, ComboBox, LineEdit, Slider, Switch } from "std-widgets.slint";
+
+export struct Ctrl {
+    id: string,
+    name: string,
+    meta: string,
+    badge: string,
+}
+
+component Key inherits Rectangle {
+    in property <string> label;
+    in property <bool> on;
+    background: on ? #3c6dff : #222a3c;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: on ? #8eafff : #3a4662;
+    Text {
+        text: root.label;
+        color: #f4f7fb;
+        font-size: 12px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+component Stick inherits Rectangle {
+    in property <float> raw-x;
+    in property <float> raw-y;
+    in property <float> out-x;
+    in property <float> out-y;
+    in property <bool> pressed;
+    width: 78px;
+    height: 78px;
+    border-radius: 39px;
+    background: pressed ? #31467a : #1a2133;
+    border-width: 1px;
+    border-color: #3a4662;
+    Rectangle {
+        width: 14px;
+        height: 14px;
+        border-radius: 7px;
+        background: #c5cedd;
+        x: (root.width - self.width) / 2 + root.raw-x * 26px;
+        y: (root.height - self.height) / 2 - root.raw-y * 26px;
+    }
+    Rectangle {
+        width: 10px;
+        height: 10px;
+        border-radius: 5px;
+        background: #6ea2ff;
+        x: (root.width - self.width) / 2 + root.out-x * 26px;
+        y: (root.height - self.height) / 2 - root.out-y * 26px;
+    }
+}
+
+component TriggerBar inherits Rectangle {
+    in property <string> label;
+    in property <float> value;
+    width: 110px;
+    height: 34px;
+    border-radius: 8px;
+    background: #222a3c;
+    Rectangle {
+        x: 0;
+        width: min(root.width, root.value * root.width);
+        height: 100%;
+        border-radius: 8px;
+        background: #3c6dff;
+    }
+    Text {
+        text: label;
+        color: #f4f7fb;
+        font-size: 12px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+component Pad inherits Rectangle {
+    in property <bool> xbox;
+    in property <int> buttons;
+    in property <float> lx;
+    in property <float> ly;
+    in property <float> rx;
+    in property <float> ry;
+    in property <float> olx;
+    in property <float> oly;
+    in property <float> orx;
+    in property <float> ory;
+    in property <float> l2;
+    in property <float> r2;
+    callback down(int, int) -> bool;
+
+    height: 390px;
+    background: #161c2b;
+    border-radius: 18px;
+
+    if !xbox: Rectangle {
+        x: 0;
+        y: 0;
+        width: 100%;
+        height: 100%;
+        TriggerBar { x: 70px; y: 16px; label: "L2"; value: root.l2; }
+        TriggerBar { x: parent.width - 180px; y: 16px; label: "R2"; value: root.r2; }
+        Key { x: 70px; y: 58px; width: 110px; height: 28px; label: "L1"; on: root.down(root.buttons, 16); }
+        Key { x: parent.width - 180px; y: 58px; width: 110px; height: 28px; label: "R1"; on: root.down(root.buttons, 32); }
+        Key { x: (parent.width - 220px) / 2; y: 96px; width: 220px; height: 78px; label: "Panel táctil"; on: root.down(root.buttons, 8192); }
+        Key { x: parent.width / 2 - 130px; y: 100px; width: 22px; height: 36px; label: ""; on: root.down(root.buttons, 256); }
+        Key { x: parent.width / 2 + 108px; y: 100px; width: 22px; height: 36px; label: ""; on: root.down(root.buttons, 512); }
+        Key { x: parent.width / 2 - 16px; y: 196px; width: 32px; height: 32px; label: "PS"; on: root.down(root.buttons, 4096); }
+        Key { x: parent.width / 2 - 18px; y: 234px; width: 36px; height: 16px; label: ""; on: root.down(root.buttons, 16384); }
+
+        Key { x: 118px; y: 118px; width: 36px; height: 28px; label: "↑"; on: root.down(root.buttons, 32768); }
+        Key { x: 118px; y: 176px; width: 36px; height: 28px; label: "↓"; on: root.down(root.buttons, 65536); }
+        Key { x: 78px; y: 148px; width: 36px; height: 28px; label: "←"; on: root.down(root.buttons, 131072); }
+        Key { x: 158px; y: 148px; width: 36px; height: 28px; label: "→"; on: root.down(root.buttons, 262144); }
+
+        Key { x: parent.width - 168px; y: 112px; width: 36px; height: 36px; label: "△"; on: root.down(root.buttons, 8); }
+        Key { x: parent.width - 128px; y: 148px; width: 36px; height: 36px; label: "○"; on: root.down(root.buttons, 2); }
+        Key { x: parent.width - 168px; y: 184px; width: 36px; height: 36px; label: "✕"; on: root.down(root.buttons, 1); }
+        Key { x: parent.width - 208px; y: 148px; width: 36px; height: 36px; label: "□"; on: root.down(root.buttons, 4); }
+
+        Stick { x: parent.width / 2 - 150px; y: 270px; raw-x: root.lx; raw-y: root.ly; out-x: root.olx; out-y: root.oly; pressed: root.down(root.buttons, 1024); }
+        Stick { x: parent.width / 2 + 70px; y: 270px; raw-x: root.rx; raw-y: root.ry; out-x: root.orx; out-y: root.ory; pressed: root.down(root.buttons, 2048); }
+    }
+
+    if xbox: Rectangle {
+        x: 0;
+        y: 0;
+        width: 100%;
+        height: 100%;
+        TriggerBar { x: 70px; y: 16px; label: "LT"; value: root.l2; }
+        TriggerBar { x: parent.width - 180px; y: 16px; label: "RT"; value: root.r2; }
+        Key { x: 70px; y: 58px; width: 110px; height: 28px; label: "LB"; on: root.down(root.buttons, 16); }
+        Key { x: parent.width - 180px; y: 58px; width: 110px; height: 28px; label: "RB"; on: root.down(root.buttons, 32); }
+
+        Stick { x: 90px; y: 110px; raw-x: root.lx; raw-y: root.ly; out-x: root.olx; out-y: root.oly; pressed: root.down(root.buttons, 1024); }
+        Key { x: 112px; y: 230px; width: 36px; height: 28px; label: "↑"; on: root.down(root.buttons, 32768); }
+        Key { x: 112px; y: 288px; width: 36px; height: 28px; label: "↓"; on: root.down(root.buttons, 65536); }
+        Key { x: 72px; y: 260px; width: 36px; height: 28px; label: "←"; on: root.down(root.buttons, 131072); }
+        Key { x: 152px; y: 260px; width: 36px; height: 28px; label: "→"; on: root.down(root.buttons, 262144); }
+
+        Key { x: parent.width - 168px; y: 112px; width: 36px; height: 36px; label: "Y"; on: root.down(root.buttons, 8); }
+        Key { x: parent.width - 128px; y: 148px; width: 36px; height: 36px; label: "B"; on: root.down(root.buttons, 2); }
+        Key { x: parent.width - 168px; y: 184px; width: 36px; height: 36px; label: "A"; on: root.down(root.buttons, 1); }
+        Key { x: parent.width - 208px; y: 148px; width: 36px; height: 36px; label: "X"; on: root.down(root.buttons, 4); }
+        Stick { x: parent.width - 188px; y: 250px; raw-x: root.rx; raw-y: root.ry; out-x: root.orx; out-y: root.ory; pressed: root.down(root.buttons, 2048); }
+
+        Key { x: parent.width / 2 - 70px; y: 168px; width: 52px; height: 28px; label: "View"; on: root.down(root.buttons, 256); }
+        Key { x: parent.width / 2 - 16px; y: 160px; width: 32px; height: 32px; label: "X"; on: root.down(root.buttons, 4096); }
+        Key { x: parent.width / 2 + 28px; y: 168px; width: 52px; height: 28px; label: "Menu"; on: root.down(root.buttons, 512); }
+    }
+}
+
+component TriggerEditor inherits VerticalLayout {
+    in property <string> title;
+    in-out property <int> mode;
+    in-out property <float> p0;
+    in-out property <float> p1;
+    in-out property <float> p2;
+    in-out property <float> p3;
+    in-out property <float> p4;
+    in-out property <float> p5;
+    in-out property <float> z0;
+    in-out property <float> z1;
+    in-out property <float> z2;
+    in-out property <float> z3;
+    in-out property <float> z4;
+    in-out property <float> z5;
+    in-out property <float> z6;
+    in-out property <float> z7;
+    in-out property <float> z8;
+    in-out property <float> z9;
+    spacing: 8px;
+    Text { text: root.title; font-weight: 600; }
+    ComboBox {
+        model: ["Apagado", "Resistencia", "Progresiva", "Arma", "Vibración", "Arco", "Galope", "Ametralladora", "Por zonas"];
+        current-index: root.mode;
+        selected(i) => { root.mode = i; }
+    }
+    if root.mode == 1 || root.mode == 2 || root.mode == 3 || root.mode == 4 || root.mode == 5 || root.mode == 6 || root.mode == 7: VerticalLayout {
+        Text { text: "Inicio"; font-size: 12px; }
+        Slider { minimum: 0; maximum: 9; step: 1; value <=> root.p0; }
+    }
+    if root.mode == 2 || root.mode == 3 || root.mode == 5 || root.mode == 6 || root.mode == 7: VerticalLayout {
+        Text { text: "Fin"; font-size: 12px; }
+        Slider { minimum: 0; maximum: 9; step: 1; value <=> root.p1; }
+    }
+    if root.mode == 1: VerticalLayout {
+        Text { text: "Fuerza"; font-size: 12px; }
+        Slider { minimum: 0; maximum: 8; step: 1; value <=> root.p1; }
+    }
+    if root.mode == 4: VerticalLayout {
+        Text { text: "Amplitud"; font-size: 12px; }
+        Slider { minimum: 0; maximum: 8; step: 1; value <=> root.p1; }
+        Text { text: "Frecuencia"; font-size: 12px; }
+        Slider { minimum: 0; maximum: 255; step: 1; value <=> root.p2; }
+    }
+    if root.mode == 2: VerticalLayout {
+        Text { text: "Fuerza inicial"; font-size: 12px; }
+        Slider { minimum: 0; maximum: 8; step: 1; value <=> root.p2; }
+        Text { text: "Fuerza final"; font-size: 12px; }
+        Slider { minimum: 0; maximum: 8; step: 1; value <=> root.p3; }
+    }
+    if root.mode == 3 || root.mode == 5: VerticalLayout {
+        Text { text: "Fuerza"; font-size: 12px; }
+        Slider { minimum: 0; maximum: 8; step: 1; value <=> root.p2; }
+    }
+    if root.mode == 5: VerticalLayout {
+        Text { text: "Empuje final"; font-size: 12px; }
+        Slider { minimum: 0; maximum: 8; step: 1; value <=> root.p3; }
+    }
+    if root.mode == 6: VerticalLayout {
+        Text { text: "Primer golpe"; font-size: 12px; }
+        Slider { minimum: 0; maximum: 8; step: 1; value <=> root.p2; }
+        Text { text: "Segundo golpe"; font-size: 12px; }
+        Slider { minimum: 0; maximum: 8; step: 1; value <=> root.p3; }
+        Text { text: "Frecuencia"; font-size: 12px; }
+        Slider { minimum: 0; maximum: 255; step: 1; value <=> root.p4; }
+    }
+    if root.mode == 7: VerticalLayout {
+        Text { text: "Fuerza A"; font-size: 12px; }
+        Slider { minimum: 0; maximum: 8; step: 1; value <=> root.p2; }
+        Text { text: "Fuerza B"; font-size: 12px; }
+        Slider { minimum: 0; maximum: 8; step: 1; value <=> root.p3; }
+        Text { text: "Frecuencia"; font-size: 12px; }
+        Slider { minimum: 0; maximum: 255; step: 1; value <=> root.p4; }
+        Text { text: "Periodo"; font-size: 12px; }
+        Slider { minimum: 0; maximum: 255; step: 1; value <=> root.p5; }
+    }
+    if root.mode == 8: VerticalLayout {
+        Text { text: "Zona 1 a 10"; font-size: 12px; }
+        Slider { minimum: 0; maximum: 8; step: 1; value <=> root.z0; }
+        Slider { minimum: 0; maximum: 8; step: 1; value <=> root.z1; }
+        Slider { minimum: 0; maximum: 8; step: 1; value <=> root.z2; }
+        Slider { minimum: 0; maximum: 8; step: 1; value <=> root.z3; }
+        Slider { minimum: 0; maximum: 8; step: 1; value <=> root.z4; }
+        Slider { minimum: 0; maximum: 8; step: 1; value <=> root.z5; }
+        Slider { minimum: 0; maximum: 8; step: 1; value <=> root.z6; }
+        Slider { minimum: 0; maximum: 8; step: 1; value <=> root.z7; }
+        Slider { minimum: 0; maximum: 8; step: 1; value <=> root.z8; }
+        Slider { minimum: 0; maximum: 8; step: 1; value <=> root.z9; }
+    }
+}
+
+export component AppWindow inherits Window {
+    title: "PadBridge";
+    width: 1180px;
+    height: 760px;
+    min-width: 980px;
+    min-height: 640px;
+    background: #10141c;
+    default-font-family: "Segoe UI";
+    default-font-size: 14px;
+
+    in property <[Ctrl]> controllers;
+    in-out property <string> selected-id;
+    in-out property <bool> settings-open;
+    in property <bool> xbox;
+    in property <bool> show-ds;
+    in property <string> heading;
+    in property <string> subheading;
+    in property <string> editing;
+    in property <string> vigem-banner;
+    in property <string> conflict-banner;
+    in property <[string]> games;
+    in-out property <string> new-game;
+
+    in property <int> live-buttons;
+    in property <float> live-lx; in property <float> live-ly;
+    in property <float> live-rx; in property <float> live-ry;
+    in property <float> live-olx; in property <float> live-oly;
+    in property <float> live-orx; in property <float> live-ory;
+    in property <float> live-l2; in property <float> live-r2;
+    in property <string> gyro-text;
+    in property <string> accel-text;
+
+    in-out property <int> tab;
+    in-out property <int> output-index;
+    in-out property <float> l-sens; in-out property <float> l-dz; in-out property <float> l-anti; in-out property <float> l-curve;
+    in-out property <bool> l-inv-x; in-out property <bool> l-inv-y;
+    in-out property <float> r-sens; in-out property <float> r-dz; in-out property <float> r-anti; in-out property <float> r-curve;
+    in-out property <bool> r-inv-x; in-out property <bool> r-inv-y;
+    in-out property <float> l2-dz; in-out property <float> l2-max; in-out property <float> r2-dz; in-out property <float> r2-max;
+    in-out property <bool> rumble-on; in-out property <float> rumble-gain;
+    in-out property <bool> touch-mouse; in-out property <float> touch-speed; in-out property <bool> touch-back;
+    in-out property <int> gyro-mode; in-out property <float> gyro-sens; in-out property <float> gyro-dz;
+    in-out property <int> light-mode; in-out property <float> light-r; in-out property <float> light-g; in-out property <float> light-b;
+    in-out property <float> light-bright; in-out property <float> light-speed;
+    in-out property <int> led-mode; in-out property <float> led-bright;
+    in-out property <bool> led0; in-out property <bool> led1; in-out property <bool> led2; in-out property <bool> led3; in-out property <bool> led4;
+    in-out property <int> mic-mode;
+    in-out property <int> l-mode; in-out property <float> l-p0; in-out property <float> l-p1; in-out property <float> l-p2; in-out property <float> l-p3; in-out property <float> l-p4; in-out property <float> l-p5;
+    in-out property <float> l-z0; in-out property <float> l-z1; in-out property <float> l-z2; in-out property <float> l-z3; in-out property <float> l-z4;
+    in-out property <float> l-z5; in-out property <float> l-z6; in-out property <float> l-z7; in-out property <float> l-z8; in-out property <float> l-z9;
+    in-out property <int> r-mode; in-out property <float> r-p0; in-out property <float> r-p1; in-out property <float> r-p2; in-out property <float> r-p3; in-out property <float> r-p4; in-out property <float> r-p5;
+    in-out property <float> r-z0; in-out property <float> r-z1; in-out property <float> r-z2; in-out property <float> r-z3; in-out property <float> r-z4;
+    in-out property <float> r-z5; in-out property <float> r-z6; in-out property <float> r-z7; in-out property <float> r-z8; in-out property <float> r-z9;
+    in property <int> remap-gen;
+    in-out property <bool> close-to-tray; in-out property <bool> start-minimized; in-out property <bool> run-at-startup;
+    in property <string> status-text;
+
+    callback bit-on(int, int) -> bool;
+    callback remap-target(int, int) -> int;
+    callback set-remap(int, int);
+    callback select(string);
+    callback identify();
+    callback apply-all();
+    callback reset-profile();
+    callback preset(int);
+    callback add-game(string);
+    callback remove-game(int);
+    callback test-strong();
+    callback test-soft();
+
+    HorizontalLayout {
+        Rectangle {
+            width: 250px;
+            background: #181e2c;
+            VerticalLayout {
+                padding: 16px;
+                spacing: 10px;
+                Text { text: "PadBridge"; font-size: 18px; font-weight: 700; }
+                Text { text: "Cada mando elige cómo se ve"; font-size: 12px; color: #9aa6bd; wrap: word-wrap; }
+                Text { text: "Controles"; font-size: 12px; color: #9aa6bd; }
+                VerticalLayout {
+                    spacing: 6px;
+                    for ctrl in root.controllers: TouchArea {
+                        clicked => { root.select(ctrl.id); }
+                        Rectangle {
+                            background: ctrl.id == root.selected-id && !root.settings-open ? #2a3858 : #222a3c;
+                            border-radius: 10px;
+                            VerticalLayout {
+                                padding: 8px;
+                                spacing: 2px;
+                                Text { text: ctrl.name; font-weight: 600; }
+                                Text { text: ctrl.badge; font-size: 12px; color: #8eb0ff; }
+                                Text { text: ctrl.meta; font-size: 12px; color: #9aa6bd; }
+                            }
+                        }
+                    }
+                }
+                Rectangle { vertical-stretch: 1; }
+                Button {
+                    text: "Ajustes";
+                    clicked => { root.settings-open = true; }
+                }
+            }
+        }
+
+        VerticalLayout {
+            padding: 16px;
+            spacing: 10px;
+            if root.vigem-banner != "": Text { text: root.vigem-banner; wrap: word-wrap; color: #ffb4b4; }
+            if root.conflict-banner != "": Text { text: root.conflict-banner; wrap: word-wrap; color: #ffd27a; }
+
+            if root.settings-open: VerticalLayout {
+                spacing: 12px;
+                Text { text: "Ajustes"; font-size: 22px; font-weight: 700; }
+                Switch { text: "Al cerrar, seguir en la bandeja"; checked <=> root.close-to-tray; }
+                Switch { text: "Iniciar minimizado en la bandeja"; checked <=> root.start-minimized; }
+                Switch { text: "Abrir PadBridge al iniciar Windows"; checked <=> root.run-at-startup; }
+                Text { text: root.status-text; wrap: word-wrap; color: #9aa6bd; font-size: 12px; }
+                AboutSlint {}
+            }
+
+            if !root.settings-open && root.selected-id == "": VerticalLayout {
+                alignment: center;
+                Text { text: "No hay controles conectados"; font-size: 22px; }
+                Text { text: "Conecta un DualSense o un Xbox por USB o Bluetooth."; color: #9aa6bd; wrap: word-wrap; }
+            }
+
+            if !root.settings-open && root.selected-id != "": VerticalLayout {
+                spacing: 8px;
+                HorizontalLayout {
+                    spacing: 8px;
+                    VerticalLayout {
+                        Text { text: root.heading; font-size: 22px; font-weight: 700; }
+                        Text { text: root.subheading; font-size: 12px; color: #9aa6bd; }
+                        Text { text: root.editing; font-size: 12px; color: #8eb0ff; }
+                    }
+                    Rectangle { horizontal-stretch: 1; }
+                    Button { text: "Identificar"; clicked => { root.identify(); } }
+                    Button { text: "Aplicar a todos"; clicked => { root.apply-all(); } }
+                    Button { text: "Restablecer"; clicked => { root.reset-profile(); } }
+                }
+                HorizontalLayout {
+                    spacing: 6px;
+                    Button { text: "En vivo"; clicked => { root.tab = 0; } }
+                    if root.show-ds: Button { text: "Gatillos"; clicked => { root.tab = 1; } }
+                    Button { text: "Sensibilidad"; clicked => { root.tab = 2; } }
+                    if root.show-ds: Button { text: "Luces"; clicked => { root.tab = 3; } }
+                    Button { text: "Botones"; clicked => { root.tab = 4; } }
+                    Button { text: "Salida"; clicked => { root.tab = 5; } }
+                    Button { text: "Juegos"; clicked => { root.tab = 6; } }
+                }
+
+                if root.tab == 0: VerticalLayout {
+                    spacing: 8px;
+                    Pad {
+                        xbox: root.xbox;
+                        buttons: root.live-buttons;
+                        lx: root.live-lx; ly: root.live-ly; rx: root.live-rx; ry: root.live-ry;
+                        olx: root.live-olx; oly: root.live-oly; orx: root.live-orx; ory: root.live-ory;
+                        l2: root.live-l2; r2: root.live-r2;
+                        down(mask, bit) => { root.bit-on(mask, bit) }
+                    }
+                    Text { text: "Punto gris: el stick. Punto azul: lo que recibe el control virtual. En modo nativo el juego recibe el mando real."; wrap: word-wrap; color: #9aa6bd; font-size: 12px; }
+                    if root.show-ds: Text { text: root.gyro-text; font-size: 12px; }
+                    if root.show-ds: Text { text: root.accel-text; font-size: 12px; }
+                }
+
+                if root.tab == 1 && root.show-ds: ScrollView {
+                    VerticalLayout {
+                        spacing: 8px;
+                        Text { text: "Los gatillos adaptativos los pone PadBridge en el DualSense real. En modo nativo no se escriben, para que el juego sea el dueño."; wrap: word-wrap; color: #9aa6bd; font-size: 12px; }
+                        HorizontalLayout {
+                            spacing: 6px;
+                            Button { text: "Normal"; clicked => { root.preset(0); } }
+                            Button { text: "Rifle"; clicked => { root.preset(1); } }
+                            Button { text: "Pistola"; clicked => { root.preset(2); } }
+                            Button { text: "Escopeta"; clicked => { root.preset(3); } }
+                            Button { text: "Ametralladora"; clicked => { root.preset(4); } }
+                        }
+                        HorizontalLayout {
+                            spacing: 6px;
+                            Button { text: "Arco"; clicked => { root.preset(5); } }
+                            Button { text: "Carreras"; clicked => { root.preset(6); } }
+                            Button { text: "Caballo"; clicked => { root.preset(7); } }
+                            Button { text: "Motor"; clicked => { root.preset(8); } }
+                            Button { text: "Máxima"; clicked => { root.preset(9); } }
+                        }
+                        HorizontalLayout {
+                            spacing: 16px;
+                            TriggerEditor {
+                                title: "L2";
+                                mode <=> root.l-mode;
+                                p0 <=> root.l-p0; p1 <=> root.l-p1; p2 <=> root.l-p2; p3 <=> root.l-p3; p4 <=> root.l-p4; p5 <=> root.l-p5;
+                                z0 <=> root.l-z0; z1 <=> root.l-z1; z2 <=> root.l-z2; z3 <=> root.l-z3; z4 <=> root.l-z4;
+                                z5 <=> root.l-z5; z6 <=> root.l-z6; z7 <=> root.l-z7; z8 <=> root.l-z8; z9 <=> root.l-z9;
+                            }
+                            TriggerEditor {
+                                title: "R2";
+                                mode <=> root.r-mode;
+                                p0 <=> root.r-p0; p1 <=> root.r-p1; p2 <=> root.r-p2; p3 <=> root.r-p3; p4 <=> root.r-p4; p5 <=> root.r-p5;
+                                z0 <=> root.r-z0; z1 <=> root.r-z1; z2 <=> root.r-z2; z3 <=> root.r-z3; z4 <=> root.r-z4;
+                                z5 <=> root.r-z5; z6 <=> root.r-z6; z7 <=> root.r-z7; z8 <=> root.r-z8; z9 <=> root.r-z9;
+                            }
+                        }
+                    }
+                }
+
+                if root.tab == 2: ScrollView {
+                    VerticalLayout {
+                        spacing: 8px;
+                        Text { text: "La curva, la zona muerta y la inversión llegan al control virtual. En modo nativo el juego lee el mando sin esta curva."; wrap: word-wrap; color: #9aa6bd; font-size: 12px; }
+                        HorizontalLayout {
+                            spacing: 20px;
+                            VerticalLayout {
+                                Text { text: "Stick izquierdo"; font-weight: 600; }
+                                Text { text: "Sensibilidad"; font-size: 12px; }
+                                Slider { minimum: 0.25; maximum: 3; step: 0.05; value <=> root.l-sens; }
+                                Text { text: "Zona muerta"; font-size: 12px; }
+                                Slider { minimum: 0; maximum: 0.5; step: 0.01; value <=> root.l-dz; }
+                                Text { text: "Anti-zona muerta"; font-size: 12px; }
+                                Slider { minimum: 0; maximum: 0.5; step: 0.01; value <=> root.l-anti; }
+                                Text { text: "Curva"; font-size: 12px; }
+                                Slider { minimum: 0.3; maximum: 3; step: 0.05; value <=> root.l-curve; }
+                                Switch { text: "Invertir X"; checked <=> root.l-inv-x; }
+                                Switch { text: "Invertir Y"; checked <=> root.l-inv-y; }
+                            }
+                            VerticalLayout {
+                                Text { text: "Stick derecho"; font-weight: 600; }
+                                Text { text: "Sensibilidad"; font-size: 12px; }
+                                Slider { minimum: 0.25; maximum: 3; step: 0.05; value <=> root.r-sens; }
+                                Text { text: "Zona muerta"; font-size: 12px; }
+                                Slider { minimum: 0; maximum: 0.5; step: 0.01; value <=> root.r-dz; }
+                                Text { text: "Anti-zona muerta"; font-size: 12px; }
+                                Slider { minimum: 0; maximum: 0.5; step: 0.01; value <=> root.r-anti; }
+                                Text { text: "Curva"; font-size: 12px; }
+                                Slider { minimum: 0.3; maximum: 3; step: 0.05; value <=> root.r-curve; }
+                                Switch { text: "Invertir X"; checked <=> root.r-inv-x; }
+                                Switch { text: "Invertir Y"; checked <=> root.r-inv-y; }
+                            }
+                        }
+                        Text { text: "Gatillo izquierdo"; font-weight: 600; }
+                        Text { text: "Zona muerta"; font-size: 12px; }
+                        Slider { minimum: 0; maximum: 0.6; step: 0.01; value <=> root.l2-dz; }
+                        Text { text: "Punto máximo"; font-size: 12px; }
+                        Slider { minimum: 0.3; maximum: 1; step: 0.01; value <=> root.l2-max; }
+                        Text { text: "Gatillo derecho"; font-weight: 600; }
+                        Text { text: "Zona muerta"; font-size: 12px; }
+                        Slider { minimum: 0; maximum: 0.6; step: 0.01; value <=> root.r2-dz; }
+                        Text { text: "Punto máximo"; font-size: 12px; }
+                        Slider { minimum: 0.3; maximum: 1; step: 0.01; value <=> root.r2-max; }
+                    }
+                }
+
+                if root.tab == 3 && root.show-ds: ScrollView {
+                    VerticalLayout {
+                        spacing: 8px;
+                        Text { text: "En modo nativo estas luces no se envían al mando."; wrap: word-wrap; color: #9aa6bd; font-size: 12px; }
+                        ComboBox {
+                            model: ["Color fijo", "Arcoíris", "Batería", "Apagada"];
+                            current-index: root.light-mode;
+                            selected(i) => { root.light-mode = i; }
+                        }
+                        Text { text: "Rojo"; font-size: 12px; }
+                        Slider { minimum: 0; maximum: 255; step: 1; value <=> root.light-r; }
+                        Text { text: "Verde"; font-size: 12px; }
+                        Slider { minimum: 0; maximum: 255; step: 1; value <=> root.light-g; }
+                        Text { text: "Azul"; font-size: 12px; }
+                        Slider { minimum: 0; maximum: 255; step: 1; value <=> root.light-b; }
+                        Text { text: "Brillo"; font-size: 12px; }
+                        Slider { minimum: 0; maximum: 1; step: 0.05; value <=> root.light-bright; }
+                        Text { text: "Velocidad del arcoíris"; font-size: 12px; }
+                        Slider { minimum: 0.05; maximum: 2; step: 0.05; value <=> root.light-speed; }
+                        Text { text: "LEDs de jugador"; font-weight: 600; }
+                        ComboBox {
+                            model: ["Número de Xbox", "Patrón propio", "Apagados"];
+                            current-index: root.led-mode;
+                            selected(i) => { root.led-mode = i; }
+                        }
+                        HorizontalLayout {
+                            Switch { text: "1"; checked <=> root.led0; }
+                            Switch { text: "2"; checked <=> root.led1; }
+                            Switch { text: "3"; checked <=> root.led2; }
+                            Switch { text: "4"; checked <=> root.led3; }
+                            Switch { text: "5"; checked <=> root.led4; }
+                        }
+                        Text { text: "Brillo de LEDs"; font-size: 12px; }
+                        Slider { minimum: 0; maximum: 2; step: 1; value <=> root.led-bright; }
+                        Text { text: "LED del micrófono"; font-weight: 600; }
+                        ComboBox {
+                            model: ["Apagado", "Encendido", "Pulso"];
+                            current-index: root.mic-mode;
+                            selected(i) => { root.mic-mode = i; }
+                        }
+                    }
+                }
+
+                if root.tab == 4: ScrollView {
+                    VerticalLayout {
+                        spacing: 6px;
+                        Text { text: "El remapeo se aplica al control virtual. Las paletas y los FN son del DualSense Edge. Sin asignar deja el botón fuera del virtual."; wrap: word-wrap; color: #9aa6bd; font-size: 12px; }
+                        for name[i] in ["Cruz / A", "Círculo / B", "Cuadrado / X", "Triángulo / Y", "L1 / LB", "R1 / RB", "L2 / LT", "R2 / RT", "Create / View", "Options / Menu", "L3", "R3", "PS / Xbox", "Panel táctil", "Mute", "Arriba", "Abajo", "Izquierda", "Derecha", "FN izquierdo", "FN derecho", "Paleta izquierda", "Paleta derecha"]: HorizontalLayout {
+                            spacing: 8px;
+                            Text { text: name; vertical-alignment: center; width: 160px; }
+                            ComboBox {
+                                model: ["Sin asignar", "Cruz / A", "Círculo / B", "Cuadrado / X", "Triángulo / Y", "L1 / LB", "R1 / RB", "L2 / LT", "R2 / RT", "Create / View", "Options / Menu", "L3", "R3", "PS / Xbox", "Panel táctil", "Mute", "Arriba", "Abajo", "Izquierda", "Derecha", "FN izquierdo", "FN derecho", "Paleta izquierda", "Paleta derecha"];
+                                current-index: root.remap-target(i, root.remap-gen);
+                                selected(t) => { root.set-remap(i, t); }
+                            }
+                        }
+                    }
+                }
+
+                if root.tab == 5: ScrollView {
+                    VerticalLayout {
+                        spacing: 8px;
+                        Text { text: "Salida hacia el juego"; font-size: 16px; font-weight: 600; }
+                        if root.xbox: ComboBox {
+                            model: ["Xbox (nativo)", "DualShock 4 virtual"];
+                            current-index: root.output-index;
+                            selected(i) => { root.output-index = i; }
+                        }
+                        if !root.xbox: ComboBox {
+                            model: ["DualSense (nativo)", "Xbox 360 virtual", "DualShock 4 virtual"];
+                            current-index: root.output-index;
+                            selected(i) => { root.output-index = i; }
+                        }
+                        Text { text: "El mando físico no se oculta. Si eliges un virtual, el juego puede ver los dos: el real y el virtual."; wrap: word-wrap; color: #9aa6bd; font-size: 12px; }
+                        Text { text: "Giroscopio"; font-weight: 600; }
+                        ComboBox {
+                            model: ["Apagado", "Mouse", "Stick derecho del virtual"];
+                            current-index: root.gyro-mode;
+                            selected(i) => { root.gyro-mode = i; }
+                        }
+                        Text { text: "Sensibilidad"; font-size: 12px; }
+                        Slider { minimum: 0.2; maximum: 4; step: 0.05; value <=> root.gyro-sens; }
+                        Text { text: "Zona muerta"; font-size: 12px; }
+                        Slider { minimum: 0; maximum: 2000; step: 10; value <=> root.gyro-dz; }
+                        Text { text: "El mouse funciona también en modo nativo. El stick derecho solo cambia el control virtual."; wrap: word-wrap; color: #9aa6bd; font-size: 12px; }
+                        Text { text: "Vibración"; font-weight: 600; }
+                        Switch { text: "Pasar la vibración del juego"; checked <=> root.rumble-on; }
+                        Text { text: "Intensidad"; font-size: 12px; }
+                        Slider { minimum: 0; maximum: 2; step: 0.05; value <=> root.rumble-gain; }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Button { text: "Probar motor fuerte"; clicked => { root.test-strong(); } }
+                            Button { text: "Probar motor suave"; clicked => { root.test-soft(); } }
+                        }
+                        if root.show-ds: Text { text: "La vibración del juego vuelve al DualSense cuando la salida es un Xbox 360 virtual."; wrap: word-wrap; color: #9aa6bd; font-size: 12px; }
+                        if root.show-ds: Switch { text: "Panel táctil como mouse"; checked <=> root.touch-mouse; }
+                        if root.show-ds: Text { text: "Velocidad del puntero"; font-size: 12px; }
+                        if root.show-ds: Slider { minimum: 0.2; maximum: 4; step: 0.1; value <=> root.touch-speed; }
+                        if root.show-ds: Switch { text: "Clic del panel = botón Back / Share"; checked <=> root.touch-back; }
+                    }
+                }
+
+                if root.tab == 6: VerticalLayout {
+                    spacing: 8px;
+                    Text { text: "Cuando ese programa está en primer plano, este control usa ese perfil. Mientras PadBridge está delante se mantiene el último juego detectado."; wrap: word-wrap; color: #9aa6bd; font-size: 12px; }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        LineEdit { text <=> root.new-game; placeholder-text: "halo.exe"; }
+                        Button { text: "Guardar perfil para este juego"; clicked => { root.add-game(root.new-game); } }
+                    }
+                    for name[i] in root.games: HorizontalLayout {
+                        spacing: 8px;
+                        Text { text: name; vertical-alignment: center; }
+                        Button { text: "Quitar"; clicked => { root.remove-game(i); } }
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component TrayIcon inherits SystemTrayIcon {
+    callback show-app();
+    callback quit-app();
+    tooltip: "PadBridge";
+    clicked => { root.show-app(); }
+    Menu {
+        MenuItem { title: "Mostrar PadBridge"; activated => { root.show-app(); } }
+        MenuItem { title: "Salir"; activated => { root.quit-app(); } }
+    }
+}

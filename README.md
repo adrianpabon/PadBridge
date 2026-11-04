@@ -1,54 +1,67 @@
 # PadBridge
 
-Usa tus controles de **PlayStation 5 (DualSense y DualSense Edge)** en cualquier juego de PC: cada control aparece como un **control de Xbox 360 virtual**, y PadBridge le da acceso a lo propio del DualSense: **gatillos adaptativos**, **barra de luz**, **LEDs**, **vibración** y **sensibilidad por control**.
+App de Windows para usar varios mandos en el mismo PC. Cada **DualSense**, **DualSense Edge** o **Xbox** elige cómo lo ve el juego:
 
-Pensado para jugar en pantalla dividida con varios controles en el mismo PC, por ejemplo Halo: The Master Chief Collection con [AlphaRing](https://github.com/megabitt01/AlphaRing).
+- **Nativo**: el juego habla con el mando real. Un DualSense sigue siendo DualSense (gatillos adaptativos del juego, hápticos, giroscopio). Un Xbox sigue siendo Xbox.
+- **Xbox 360 virtual**: el juego lo ve como un control de Xbox 360, mediante [ViGEmBus](https://github.com/nefarius/ViGEmBus/releases).
+- **DualShock 4 virtual**: el juego lo ve como un mando de PlayStation. No es un DualSense virtual: los juegos que exigen el mando real no reciben gatillos adaptativos por este camino.
+
+El mando físico no se oculta. Si hay un virtual, el juego puede ver los dos.
+
+Pensado para jugar en pantalla dividida, por ejemplo Halo: The Master Chief Collection con [AlphaRing](https://github.com/megabitt01/AlphaRing).
 
 ## Funciones
 
-- **Varios controles a la vez**, por USB o Bluetooth. Cada uno es un control de Xbox aparte (XInput admite hasta 4 en total, contando los de Xbox reales).
-- **Gatillos adaptativos** en L2 y R2, en cualquier juego: resistencia, resistencia progresiva, arma (gatillo con clic), vibración, arco, galope, ametralladora y fuerza por zonas. Trae preajustes (Rifle, Pistola, Escopeta, Arco, Carreras…).
-- **Sensibilidad por control**: sensibilidad, curva de respuesta, zona muerta, anti-zona muerta e invertir ejes de cada stick; zona muerta y punto máximo de cada gatillo (disparo rápido). Con gráfica de la curva y vista en vivo.
-- **Luces**: color de la barra de luz, brillo, modo arcoíris o nivel de batería; LEDs de jugador con el número de control Xbox o un patrón propio; LED del micrófono.
-- **Vibración** del juego pasada al DualSense, con intensidad ajustable y botones de prueba.
-- **Panel táctil** como mouse, o su clic como botón Back.
-- **Vista en vivo**: botones, sticks (lo que mueves y lo que recibe el juego), gatillos, panel táctil, giroscopio, acelerómetro y batería.
-- **Controles de Xbox** (USB, Bluetooth o adaptador): aparecen en la misma lista, con su número de control, su batería (si la informan), vista en vivo, prueba de vibración e Identificar. Los juegos los leen directamente, sin pasar por PadBridge.
-- **Perfiles por control**, guardados solos; se reconocen por su dirección MAC, también si cambias de USB a Bluetooth. "Aplicar a todos" copia uno a los demás.
-- Sigue en la **bandeja del sistema** al cerrar la ventana, para que los controles sigan funcionando.
+- **Varios controles a la vez**, por USB o Bluetooth. XInput admite hasta 4 controles de Xbox en total, entre reales y virtuales. Un DualShock 4 virtual no ocupa uno de esos huecos.
+- **Gatillos adaptativos** en el DualSense, puestos por PadBridge: resistencia, progresiva, arma, vibración, arco, galope, ametralladora y zonas. En modo nativo no se escriben, para que el juego mande en los gatillos y las luces.
+- **Sensibilidad por control** en el mando virtual: curva, zona muerta, anti-zona muerta, invertir ejes, zona muerta y punto máximo de cada gatillo.
+- **Giroscopio** del DualSense como mouse, o sumado al stick derecho del control virtual.
+- **Remapeo de botones**, incluidas las paletas y los botones FN del DualSense Edge. Solo afecta al control virtual.
+- **Luces**: barra de luz, LEDs de jugador y LED del micrófono, cuando PadBridge escribe al DualSense.
+- **Vibración** del juego en modo Xbox 360, con intensidad y botones de prueba.
+- **Panel táctil** como mouse, o su clic como Back / Share.
+- **Vista en vivo** con la silueta del DualSense o la del Xbox, según el mando.
+- **Perfiles por mando** (por dirección MAC) y **perfiles por juego**: cuando ese `.exe` está en primer plano se usa su perfil. Mientras la ventana de PadBridge está delante se mantiene el último juego.
+- **Arranque con Windows**, bandeja del sistema e inicio minimizado.
 
 ## Requisitos
 
 - Windows 10 u 11.
-- El driver **[ViGEmBus](https://github.com/nefarius/ViGEmBus/releases)** de Nefarius (crea los controles de Xbox virtuales). Si ya usaste DS4Windows o DualSenseX, probablemente ya lo tienes.
-- Cerrar **DualSenseX, DSX o DS4Windows** mientras usas PadBridge: si no, cada control aparece dos veces. PadBridge avisa si alguno está abierto.
+- El driver **[ViGEmBus](https://github.com/nefarius/ViGEmBus/releases)** para los controles virtuales. Si ya usaste DS4Windows o DualSenseX, probablemente ya lo tienes.
+- Cerrar **DualSenseX, DSX o DS4Windows** mientras usas PadBridge. La app avisa si alguno está abierto.
 
 ## Uso
 
-1. Instala PadBridge y ábrelo.
-2. Conecta tus DualSense por USB o Bluetooth: aparecen solos en la lista, con el número de control Xbox que les tocó (también en sus LEDs).
+1. Compila o instala PadBridge y ábrelo.
+2. Conecta los mandos. Elige la salida en la pestaña **Salida**.
 3. Abre el juego después de conectar los controles: muchos juegos solo buscan controles al arrancar.
 
-El botón **Identificar** hace parpadear y vibrar el control seleccionado, para saber cuál es cuál.
+**Identificar** hace parpadear y vibrar el control seleccionado.
 
 ## Compilar
 
-Necesitas [Rust](https://rustup.rs) (toolchain MSVC), [Node.js](https://nodejs.org) 20+ y Visual Studio 2022 Build Tools (C++).
+Hace falta [Rust](https://rustup.rs) con el toolchain MSVC y Visual Studio 2022 Build Tools (C++). La interfaz es [Slint](https://slint.dev/) y no usa Node ni WebView.
 
 ```
-npm install
-npm run tauri dev     # desarrollo
-npm run tauri build   # instalador en src-tauri/target/release/bundle/nsis
+cd src-tauri
+cargo run        # desarrollo
+cargo build --release
 ```
 
-Pruebas del protocolo y de las curvas: `cargo test` dentro de `src-tauri`.
+El ejecutable queda en `src-tauri/target/release/padbridge.exe`.
+
+Pruebas del protocolo, de las curvas y de la migración de perfiles: `cargo test` dentro de `src-tauri`.
+
+Por defecto el renderer es FemtoVG sobre Direct3D (`SLINT_BACKEND=winit-femtovg-wgpu`). Para forzar el renderer de software, más pequeño y sin GPU: `SLINT_BACKEND=winit-software`.
 
 ## Cómo está hecho
 
-- **Backend en Rust** ([Tauri 2](https://tauri.app)): un hilo por control lee sus reportes HID ([hidapi](https://github.com/ruabmbua/hidapi-rs)), alimenta su control virtual ([vigem-client](https://github.com/CasualX/vigem-client)) y escribe luces, vibración y gatillos. El protocolo del DualSense (USB y Bluetooth, con su CRC32) está en `src-tauri/src/ds/protocol.rs`.
-- **Interfaz en Svelte 5 + TypeScript**, sin librerías de UI.
+- **Un solo binario en Rust.** Un hilo por DualSense lee sus reportes HID ([hidapi](https://github.com/ruabmbua/hidapi-rs)), alimenta el control virtual ([vigem-client](https://github.com/CasualX/vigem-client)) y, fuera del modo nativo, escribe luces, vibración y gatillos. El protocolo está en `src-tauri/src/ds/protocol.rs`.
+- **Interfaz en Slint**, sin WebView. El estilo es Fluent oscuro.
 
 Los formatos de los reportes siguen el driver `hid-playstation` de Linux, y las codificaciones de los efectos de gatillo, las notas públicas de Nielk1.
+
+La interfaz usa Slint bajo su licencia royalty-free para aplicaciones de escritorio. El código de PadBridge sigue siendo MIT. La pantalla de ajustes muestra el crédito de Slint.
 
 ## Licencia
 

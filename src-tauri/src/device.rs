@@ -1,7 +1,7 @@
-//! One thread per connected controller: reads its reports, feeds its virtual Xbox 360 controller, and writes its
-//! lights, rumble and trigger effects.
+//! One thread per connected controller: reads its reports, feeds its virtual controller, and writes its
+//! lights, rumble and trigger effects. In native mode the output report is left to the game.
 
-use std::sync::atomic::{AtomicBool, AtomicU16, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -10,12 +10,12 @@ use std::time::{Duration, Instant};
 use hidapi::HidDevice;
 use parking_lot::Mutex;
 use serde::Serialize;
-use vigem_client::{Client, TargetId, XGamepad, Xbox360Wired};
 
 use crate::ds::protocol::{self as p, btn, Charging, InputState, OutputState};
 use crate::mapping;
-use crate::settings::{LightbarMode, MicLed, PlayerLedMode, Profile};
+use crate::settings::{GyroAim, LightbarMode, MicLed, OutputMode, PlayerLedMode, Profile};
 use crate::sys;
+use crate::virt::{self, Virt};
 
 #[derive(Clone, Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -29,10 +29,12 @@ pub struct ControllerInfo {
     /// 0-100, None when the controller doesn't report it.
     pub battery: Option<u8>,
     pub charging: Charging,
-    /// XInput slot (0-3) of its virtual Xbox controller.
+    /// XInput slot (0-3) of its virtual Xbox controller, when it has one.
     pub slot: Option<u32>,
     pub emulating: bool,
     pub emulation_error: Option<String>,
+    /// "native", "xbox360" or "dualshock4".
+    pub output: String,
 }
 
 /// What the input view shows: the controller's own state and what the game gets.
@@ -124,18 +126,6 @@ pub fn spawn(spec: Spec) -> Handle {
     Handle { path, shared, tx, stop, join: Some(join) }
 }
 
-/// The virtual controller and its rumble listener.
-struct Virtual {
-    target: Xbox360Wired<Client>,
-    last: Option<XGamepad>,
-    slot: Option<u32>,
-    /// Player LED number from the notifications, NO_LED until one arrives.
-    led: Arc<AtomicU8>,
-    _notify: Option<JoinHandle<()>>,
-}
-
-const NO_LED: u8 = 0xFF;
-
 struct Worker {
     dev: HidDevice,
     bluetooth: bool,
@@ -145,8 +135,13 @@ struct Worker {
     profile: Profile,
     triggers: ([u8; 11], [u8; 11]),
 
-    virt: Option<Virtual>,
+    virt: Option<Virt>,
+    applied: Option<OutputMode>,
+    failed_for: Option<OutputMode>,
     next_emulation_try: Instant,
+    /// A native-mode write happened, so one neutral report is still owed.
+    native_dirty: bool,
+    gyro_rest: (f32, f32),
     next_slot_check: Instant,
     /// Game rumble, large << 8 | small, written by the notification thread.
     rumble: Arc<AtomicU16>,
@@ -178,7 +173,11 @@ impl Worker {
             profile: spec.profile,
             triggers,
             virt: None,
+            applied: None,
+            failed_for: None,
             next_emulation_try: now,
+            native_dirty: false,
+            gyro_rest: (0.0, 0.0),
             next_slot_check: now,
             rumble: Arc::new(AtomicU16::new(0)),
             test_rumble: None,
@@ -212,10 +211,21 @@ impl Worker {
             }
 
             self.track_slot();
-            let out = self.desired_output();
-            let due = self.last_write.elapsed() >= Duration::from_millis(5);
-            if (self.sent != Some(out) || self.first_write) && due {
+            let native = self.profile.output == OutputMode::Native;
+            let burst = self.identify_until.is_some() || self.test_rumble.is_some();
+            if !native || burst {
+                let out = self.desired_output();
+                let due = self.last_write.elapsed() >= Duration::from_millis(5);
+                if (self.sent != Some(out) || self.first_write) && due {
+                    self.write(&out);
+                    if native {
+                        self.native_dirty = true;
+                    }
+                }
+            } else if self.native_dirty {
+                let out = OutputState { left_trigger: p::TRIGGER_OFF, right_trigger: p::TRIGGER_OFF, ..Default::default() };
                 self.write(&out);
+                self.native_dirty = false;
             }
         }
 
@@ -269,53 +279,55 @@ impl Worker {
     }
 
     fn manage_emulation(&mut self) {
-        if !self.profile.emulate {
+        let want = self.profile.output;
+        if self.applied == Some(want) && (want == OutputMode::Native || self.virt.is_some()) {
+            return;
+        }
+        if self.applied != Some(want) {
             if self.virt.take().is_some() {
                 self.rumble.store(0, Ordering::Relaxed);
-                self.set_info(|i| {
-                    i.emulating = false;
-                    i.slot = None;
-                    i.emulation_error = None;
-                });
             }
+        }
+        if want == OutputMode::Native {
+            if self.applied.is_some() && self.applied != Some(OutputMode::Native) {
+                self.native_dirty = true;
+            }
+            self.applied = Some(want);
+            self.failed_for = None;
+            self.set_info(|i| {
+                i.emulating = false;
+                i.slot = None;
+                i.emulation_error = None;
+                i.output = want.as_str().into();
+            });
             return;
         }
-        if self.virt.is_some() || Instant::now() < self.next_emulation_try {
+        if Instant::now() < self.next_emulation_try && self.failed_for == Some(want) {
             return;
         }
-        match self.plug_virtual() {
+        match virt::plug(want, self.rumble.clone()) {
             Ok(v) => {
                 self.virt = Some(v);
+                self.applied = Some(want);
+                self.failed_for = None;
                 self.set_info(|i| {
                     i.emulating = true;
+                    i.slot = None;
                     i.emulation_error = None;
+                    i.output = want.as_str().into();
                 });
             }
             Err(e) => {
+                self.applied = None;
+                self.failed_for = Some(want);
                 self.next_emulation_try = Instant::now() + Duration::from_secs(5);
                 self.set_info(|i| {
                     i.emulating = false;
                     i.emulation_error = Some(e);
+                    i.output = want.as_str().into();
                 });
             }
         }
-    }
-
-    fn plug_virtual(&self) -> Result<Virtual, String> {
-        let client = Client::connect().map_err(|_| "ViGEmBus no está instalado".to_string())?;
-        let mut target = Xbox360Wired::new(client, TargetId::XBOX360_WIRED);
-        target.plugin().map_err(|e| format!("no se pudo crear el control virtual: {e:?}"))?;
-        target.wait_ready().map_err(|e| format!("el control virtual no respondió: {e:?}"))?;
-        let rumble = self.rumble.clone();
-        let led = Arc::new(AtomicU8::new(NO_LED));
-        let led2 = led.clone();
-        let notify = target.request_notification().ok().map(|n| {
-            n.spawn_thread(move |_, data| {
-                rumble.store(((data.large_motor as u16) << 8) | data.small_motor as u16, Ordering::Relaxed);
-                led2.store(data.led_number, Ordering::Relaxed);
-            })
-        });
-        Ok(Virtual { target, last: None, slot: None, led, _notify: notify })
     }
 
     /// Which Xbox controller number it is: the player LED Windows lights on the virtual controller, sent with the
@@ -326,7 +338,7 @@ impl Worker {
             return;
         }
         self.next_slot_check = Instant::now() + Duration::from_secs(1);
-        let Some(v) = self.virt.as_mut() else { return };
+        let Some(Virt::Xbox(v)) = self.virt.as_mut() else { return };
         let slot = match v.led.load(Ordering::Relaxed) {
             n if n < 4 => n as u32,
             _ => return,
@@ -346,19 +358,48 @@ impl Worker {
         }
         self.input = st;
 
-        let pad = mapping::to_xinput(&st, &self.profile);
+        let shaped = mapping::shape(&st, &self.profile);
+        let native = self.profile.output == OutputMode::Native;
         {
             let mut view = self.shared.input.lock();
             view.raw = st;
-            view.out_left = [pad.thumb_lx as f32 / 32767.0, pad.thumb_ly as f32 / 32767.0];
-            view.out_right = [pad.thumb_rx as f32 / 32767.0, pad.thumb_ry as f32 / 32767.0];
-            view.out_l2 = pad.left_trigger as f32 / 255.0;
-            view.out_r2 = pad.right_trigger as f32 / 255.0;
-        }
-        if let Some(v) = self.virt.as_mut() {
-            if v.last != Some(pad) && v.target.update(&pad).is_ok() {
-                v.last = Some(pad);
+            if native {
+                let unit = |v: u8| (v as f32 - 127.5) / 127.5;
+                view.out_left = [unit(st.lx), -unit(st.ly)];
+                view.out_right = [unit(st.rx), -unit(st.ry)];
+                view.out_l2 = st.l2 as f32 / 255.0;
+                view.out_r2 = st.r2 as f32 / 255.0;
+            } else {
+                view.out_left = [shaped.lx, shaped.ly];
+                view.out_right = [shaped.rx, shaped.ry];
+                view.out_l2 = shaped.l2 as f32 / 255.0;
+                view.out_r2 = shaped.r2 as f32 / 255.0;
             }
+        }
+        match self.virt.as_mut() {
+            Some(Virt::Xbox(v)) => {
+                let pad = mapping::to_xinput(&st, &self.profile);
+                if v.last != Some(pad) && v.target.update(&pad).is_ok() {
+                    v.last = Some(pad);
+                }
+            }
+            Some(Virt::Ds4(v)) => {
+                let report = mapping::to_ds4(&st, &self.profile);
+                if v.last != Some(report) && v.target.update(&report).is_ok() {
+                    v.last = Some(report);
+                }
+            }
+            None => {}
+        }
+        if self.profile.gyro.aim == GyroAim::Mouse {
+            let (fx, fy) = mapping::gyro_mouse(st.gyro, &self.profile.gyro);
+            let fx = fx + self.gyro_rest.0;
+            let fy = fy + self.gyro_rest.1;
+            let (dx, dy) = (fx.trunc(), fy.trunc());
+            self.gyro_rest = (fx - dx, fy - dy);
+            sys::mouse_move(dx as i32, dy as i32);
+        } else {
+            self.gyro_rest = (0.0, 0.0);
         }
         if self.profile.touchpad.mouse {
             self.touch_mouse(&st);
@@ -394,7 +435,12 @@ impl Worker {
     fn desired_output(&mut self) -> OutputState {
         let now = Instant::now();
         let pr = &self.profile;
-        let mut out = OutputState { left_trigger: self.triggers.0, right_trigger: self.triggers.1, ..Default::default() };
+        let native = pr.output == OutputMode::Native;
+        let mut out = if native {
+            OutputState { left_trigger: p::TRIGGER_OFF, right_trigger: p::TRIGGER_OFF, ..Default::default() }
+        } else {
+            OutputState { left_trigger: self.triggers.0, right_trigger: self.triggers.1, ..Default::default() }
+        };
 
         // Rumble: a test from the UI, else the game's.
         if let Some((_, _, until)) = self.test_rumble {
@@ -410,6 +456,10 @@ impl Worker {
             let k = pr.rumble.intensity.clamp(0.0, 2.0);
             out.motor_large = ((r >> 8) as f32 * k).min(255.0) as u8;
             out.motor_small = ((r & 0xFF) as f32 * k).min(255.0) as u8;
+        }
+
+        if native && self.identify_until.is_none() {
+            return out;
         }
 
         // Lightbar
@@ -445,7 +495,10 @@ impl Worker {
         }
 
         out.player_leds = match pr.player_leds.mode {
-            PlayerLedMode::Auto => self.virt.as_ref().and_then(|v| v.slot).map(p::player_leds_for_slot).unwrap_or(0),
+            PlayerLedMode::Auto => match self.virt.as_ref() {
+                Some(Virt::Xbox(v)) => v.slot.map(p::player_leds_for_slot).unwrap_or(0),
+                _ => 0,
+            },
             PlayerLedMode::Custom => pr.player_leds.custom & 0x1F,
             PlayerLedMode::Off => 0,
         };
